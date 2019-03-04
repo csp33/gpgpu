@@ -17,6 +17,7 @@ $(OBJ)/create_graph.o : $(SRC)/create_graph.cpp $(OBJ)/tools.o
 $(BIN)/dijkstra_cpu : $(SRC)/dijkstra_cpu.cpp
 	g++ $(FLAGS) -o $@ $^
 
+
 $(OBJ)/tools.o : $(SRC)/tools.cpp
 	g++ $(FLAGS) -c -o $@ $^
 
@@ -28,3 +29,6 @@ plot_cpu : measure_cpu
 
 measure_cpu : $(BIN)/dijkstra_cpu
 	$(SRC)/measure_sequential_time.sh;
+
+$(BIN)/dijkstra_gpu : $(SRC)/dijkstra_gpu.cpp
+	g++ $(FLAGS) -l opencl -o $@ $^
