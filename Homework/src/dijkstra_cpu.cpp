@@ -1,9 +1,10 @@
-#include "tools.cpp"
+#include "tools.h"
 #include <ctime>
 #include <iostream>
 #include <vector>
 using namespace std;
 
+#define CL_HPP_TARGET_OPENCL_VERSION 10
 #define PRINT_TIME 1
 
 int main(int argc, char **argv) {

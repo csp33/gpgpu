@@ -1,16 +1,18 @@
-#include "tools.cpp"
-#include <CL/cl.hpp>
+#include "Common.h"
+#include "cl.hpp"
+#include "tools.h"
+//#include <CL/cl.hpp>
 #include <ctime>
 #include <iostream>
 #include <vector>
 using namespace std;
 
-#define PRINT_TIME 1
+#define PRINT_TIME 0
 
 vector<int> dijkstra_parallel(const vector<vector<int>> &adjacency) {
 
   vector<int> distances; // Distances from the first element to the i'st
-  vector<bool> visited;  // True if the vertex i has been visited.
+  vector<int> visited;   // True if the vertex i has been visited.
   int size = adjacency.capacity();
   distances.reserve(size);
   visited.reserve(size);
@@ -46,26 +48,25 @@ vector<int> dijkstra_parallel(const vector<vector<int>> &adjacency) {
   cl::CommandQueue queue(context, devices[0], 0, &err);
 
   // Create the OpenCL program
-  string programSource = FileToString("./kernels.cl");
+  string programSource = FileToString("./src/kernels.cl");
   cl::Program program = cl::Program(context, programSource);
   program.build(devices);
-
+  cout<<"before kernel creation"<<endl;
   // Get the kernel handle
   cl::Kernel kernel(program, "dijkstra", &err);
   CheckCLError(err);
+  cout<<"after kernel creation"<<endl;
 
   // Create the buffers
 
   cl::Buffer cl_adjacency = cl::Buffer(
       context, CL_MEM_READ_ONLY,
       sizeof(int) * adjacency.capacity() * adjacency.capacity(), NULL, &err);
-  cl::Buffer cl_visited =
-      cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(bool) * visited.capacity(),
-                 NULL, &err);
+  cl::Buffer cl_visited = cl::Buffer(
+      context, CL_MEM_READ_WRITE, sizeof(int) * visited.capacity(), NULL, &err);
   cl::Buffer cl_distances =
-      cl::Buffer(context, CL_MEM_READ_WRITE,
-                 sizeof(bool) * distances.capacity(), NULL, &err);
-
+      cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int) * distances.capacity(),
+                 NULL, &err);
   // Copy the content
 
   queue.enqueueWriteBuffer(cl_adjacency, true, 0,
@@ -81,7 +82,6 @@ vector<int> dijkstra_parallel(const vector<vector<int>> &adjacency) {
   kernel.setArg(1, cl_visited);
   kernel.setArg(2, cl_distances);
   kernel.setArg(3, distances.capacity());
-
   queue.enqueueNDRangeKernel(kernel, cl::NullRange,
                              cl::NDRange(distances.capacity(), 1),
                              cl::NullRange, NULL, &event);
@@ -110,6 +110,6 @@ int main(int argc, char **argv) {
 #if PRINT_TIME
   cout << adjacency.capacity() << " " << secs << endl;
 #else
-  cout<<distances<<endl;
+  cout << distances << endl;
 #endif
 }

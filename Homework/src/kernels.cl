@@ -1,7 +1,4 @@
-
-
-
-_kernel void dijkstra(_global int **adjacency, _global bool *visited,
+__kernel void dijkstra(_global int **adjacency, _global bool *visited,
                       _global *int distances, const int size) {
 
   for (int i = get_group_id(0); i < size; i++) {
