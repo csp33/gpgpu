@@ -4,8 +4,10 @@
 #include <fstream>
 #include <climits>
 #include <cassert>
+
 using namespace std;
 
+vector<int> get_vector_from_matrix(const vector<vector<int>> &matrix);
 vector<vector<int>> get_adjacency_matrix(const string &name);
 ostream &operator<<(ostream &os, const vector<vector<int>> &matrix);
 ostream &operator<<(ostream &os, const vector<int> &v);

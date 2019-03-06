@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#define CL_TARGET_OPENCL_VERSION 220
 
 #include "cl.hpp"
 
@@ -57,7 +58,7 @@ std::string FileToString(const std::string& path) {
 		return(contents.str());
 	}
 	return std::string();
-	
+
 }
 
 const char *getErrorString(cl_int error)

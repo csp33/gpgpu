@@ -14,8 +14,11 @@ vector<int> dijkstra_parallel(const vector<vector<int>> &adjacency) {
   vector<int> distances; // Distances from the first element to the i'st
   vector<int> visited;   // True if the vertex i has been visited.
   int size = adjacency.capacity();
-  distances.reserve(size);
-  visited.reserve(size);
+  distances.resize(size);
+  visited.resize(size);
+  //As OpenCL does not support matrices, we must transform it into a vector.
+  vector<int> adj_vector = get_vector_from_matrix(adjacency);
+
 
   // Initialize the distances as +INF and visited to false:
   for (int i = 0; i < size; i++) {
@@ -25,63 +28,71 @@ vector<int> dijkstra_parallel(const vector<vector<int>> &adjacency) {
 
   distances[0] = 0; // Distance of source to itself is 0
 
+  /**** OpenCL kernel creation *****/
+
   cl_int err = CL_SUCCESS;
 
   // Get a platform ID
+
   vector<cl::Platform> platforms;
   cl::Platform::get(&platforms);
-  if (platforms.size() == 0) {
-    cout << "Unable to find suitable platform." << endl;
+  if (platforms.empty()) {
+    cerr << "Unable to find suitable platform." << endl;
     exit(-1);
   }
 
   // Create a context
+
   cl_context_properties properties[] = {
       CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0};
   cl::Context context(CL_DEVICE_TYPE_GPU, properties);
 
   // Enumerate the devices
+
   vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
 
   // Create the command queue
-  cl::Event event;
+
   cl::CommandQueue queue(context, devices[0], 0, &err);
 
   // Create the OpenCL program
-  string programSource = FileToString("./src/kernels.cl");
+
+  string programSource = FileToString("./src/programs.cl");
   cl::Program program = cl::Program(context, programSource);
   program.build(devices);
-  cout<<"before kernel creation"<<endl;
+
   // Get the kernel handle
+
   cl::Kernel kernel(program, "dijkstra", &err);
   CheckCLError(err);
-  cout<<"after kernel creation"<<endl;
 
   // Create the buffers
 
   cl::Buffer cl_adjacency = cl::Buffer(
-      context, CL_MEM_READ_ONLY,
-      sizeof(int) * adjacency.capacity() * adjacency.capacity(), NULL, &err);
-  cl::Buffer cl_visited = cl::Buffer(
-      context, CL_MEM_READ_WRITE, sizeof(int) * visited.capacity(), NULL, &err);
+      context, CL_MEM_READ_ONLY, sizeof(int) * adj_vector.capacity(), NULL, &err);
+  cl::Buffer cl_visited =
+      cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int) * size, NULL, &err);
   cl::Buffer cl_distances =
-      cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int) * distances.capacity(),
-                 NULL, &err);
-  // Copy the content
+      cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int) * size, NULL, &err);
+
+  // Copy the content to the buffers
 
   queue.enqueueWriteBuffer(cl_adjacency, true, 0,
-                           sizeof(int) * adjacency.capacity(),
-                           adjacency.data());
-  queue.enqueueWriteBuffer(cl_visited, true, 0,
-                           sizeof(bool) * visited.capacity(), visited.data());
-  queue.enqueueWriteBuffer(cl_distances, true, 0,
-                           sizeof(int) * distances.capacity(),
+                           sizeof(int) * adj_vector.capacity(), adj_vector.data());
+  queue.enqueueWriteBuffer(cl_visited, true, 0, sizeof(int) * size,
+                           visited.data());
+  queue.enqueueWriteBuffer(cl_distances, true, 0, sizeof(int) * size,
                            distances.data());
+
   // Set the kernel parameters
-  kernel.setArg(0, cl_adjacency);
-  kernel.setArg(1, cl_visited);
+
+  kernel.setArg(0, cl_visited);
+  kernel.setArg(1, cl_adjacency);
   kernel.setArg(2, cl_distances);
-  kernel.setArg(3, distances.capacity());
+  kernel.setArg(3, size);
+
+  cl::Event event;
+
   queue.enqueueNDRangeKernel(kernel, cl::NullRange,
                              cl::NDRange(distances.capacity(), 1),
                              cl::NullRange, NULL, &event);

@@ -2,6 +2,14 @@
 #include "tools.h"
 #include <iostream>
 
+vector<int> get_vector_from_matrix(const vector<vector<int>> &matrix) {
+  vector<int> result;
+  for (int i = 0; i < matrix.capacity(); i++)
+    for (int j = 0; j < matrix.capacity(); j++)
+      result.push_back(matrix[i][j]);
+  return result;
+}
+
 vector<vector<int>> get_adjacency_matrix(const string &name) {
   ifstream file;
   int size;
@@ -11,9 +19,9 @@ vector<vector<int>> get_adjacency_matrix(const string &name) {
   file >> tmp;  // read the word "SIZE"
   file >> size; // Get the size
   vector<vector<int>> adjacency;
-  adjacency.reserve(size);
+  adjacency.resize(size);
   for (int i = 0; i < size; i++)
-    adjacency[i].reserve(size);
+    adjacency[i].resize(size);
 
   for (int i = 0; i < size; i++)
     for (int j = 0; j < size; j++)
@@ -65,8 +73,8 @@ vector<int> dijkstra_sequential(const vector<vector<int>> &adjacency) {
   vector<int> distances; // Distances from the first element to the i'st
   vector<bool> visited;  // True if the vertex i has been visited.
   int size = adjacency.capacity();
-  distances.reserve(size);
-  visited.reserve(size);
+  distances.resize(size);
+  visited.resize(size);
 
   // Initialize the distances as +INF and visited to false:
   for (int i = 0; i < size; i++) {
