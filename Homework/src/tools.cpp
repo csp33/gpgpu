@@ -56,6 +56,19 @@ void write_to_file(string name, const vector<vector<int>> &matrix) {
   file.close();
 }
 
+int min_distance(const vector<int> &distances, const vector<int> &visited) {
+  int min = INT_MAX;
+  int min_idx;
+
+  for (int i = 0; i < distances.capacity(); i++) {
+    if (!visited[i] && distances[i] <= min) {
+      min = distances[i];
+      min_idx = i;
+    }
+  }
+  return min_idx;
+}
+
 int min_distance(const vector<int> &distances, const vector<bool> &visited) {
   int min = INT_MAX;
   int min_idx;

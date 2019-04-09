@@ -14,4 +14,5 @@ ostream &operator<<(ostream &os, const vector<int> &v);
 void write_to_file(string name, const vector<vector<int>> &matrix) ;
 vector<int> dijkstra_sequential(const vector<vector<int>> &adjacency);
 int min_distance(const vector<int> &distances, const vector<bool> &visited);
+int min_distance(const vector<int> &distances, const vector<int> &visited);
 #endif

@@ -5,6 +5,9 @@ INC = ./include
 
 FLAGS = -I $(INC) -std=c++11 -w
 
+
+all : $(BIN)/dijkstra_gpu $(BIN)/dijkstra_cpu
+
 # Object files
 $(OBJ)/create_graph.o : $(SRC)/create_graph.cpp
 	g++ $(FLAGS) -c -o $@ $^
@@ -39,6 +42,14 @@ plot_cpu : measure_cpu
 
 measure_cpu : $(BIN)/dijkstra_cpu
 	$(SRC)/measure_sequential_time.sh;
+
+plot_gpu : measure_gpu
+	$(SRC)/plot_gpu.sh;
+
+measure_gpu : $(BIN)/dijkstra_gpu
+	$(SRC)/measure_gpu_time.sh;
+
+plot_both : plot_cpu plot_gpu
 
 
 clean :

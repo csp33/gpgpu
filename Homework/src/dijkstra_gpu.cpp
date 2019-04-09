@@ -16,9 +16,8 @@ vector<int> dijkstra_parallel(const vector<vector<int>> &adjacency) {
   int size = adjacency.capacity();
   distances.resize(size);
   visited.resize(size);
-  //As OpenCL does not support matrices, we must transform it into a vector.
+  // As OpenCL does not support matrices, we must transform it into a vector.
   vector<int> adj_vector = get_vector_from_matrix(adjacency);
-
 
   // Initialize the distances as +INF and visited to false:
   for (int i = 0; i < size; i++) {
@@ -28,7 +27,7 @@ vector<int> dijkstra_parallel(const vector<vector<int>> &adjacency) {
 
   distances[0] = 0; // Distance of source to itself is 0
 
-  /**** OpenCL kernel creation *****/
+  /**** OpenCL find_minimum creation *****/
 
   cl_int err = CL_SUCCESS;
 
@@ -61,44 +60,70 @@ vector<int> dijkstra_parallel(const vector<vector<int>> &adjacency) {
   cl::Program program = cl::Program(context, programSource);
   program.build(devices);
 
-  // Get the kernel handle
-
-  cl::Kernel kernel(program, "dijkstra", &err);
-  CheckCLError(err);
-
   // Create the buffers
 
-  cl::Buffer cl_adjacency = cl::Buffer(
-      context, CL_MEM_READ_ONLY, sizeof(int) * adj_vector.capacity(), NULL, &err);
   cl::Buffer cl_visited =
       cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int) * size, NULL, &err);
   cl::Buffer cl_distances =
       cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int) * size, NULL, &err);
 
+  cl::Buffer cl_adjacency =
+      cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(int) * adj_vector.capacity(),
+                 NULL, &err);
+  cl::Buffer cl_minimums =
+      cl::Buffer(context, CL_MEM_READ_WRITE, sizeof(int) * 1, NULL, &err);
+
   // Copy the content to the buffers
 
-  queue.enqueueWriteBuffer(cl_adjacency, true, 0,
-                           sizeof(int) * adj_vector.capacity(), adj_vector.data());
   queue.enqueueWriteBuffer(cl_visited, true, 0, sizeof(int) * size,
                            visited.data());
   queue.enqueueWriteBuffer(cl_distances, true, 0, sizeof(int) * size,
                            distances.data());
 
-  // Set the kernel parameters
-
-  kernel.setArg(0, cl_visited);
-  kernel.setArg(1, cl_adjacency);
-  kernel.setArg(2, cl_distances);
-  kernel.setArg(3, size);
+  queue.enqueueWriteBuffer(cl_adjacency, true, 0,
+                           sizeof(int) * adj_vector.capacity(),
+                           adj_vector.data());
 
   cl::Event event;
 
-  queue.enqueueNDRangeKernel(kernel, cl::NullRange,
-                             cl::NDRange(distances.capacity(), 1),
-                             cl::NullRange, NULL, &event);
-  event.wait();
-  queue.enqueueReadBuffer(cl_distances, true, 0,
-                          sizeof(int) * distances.capacity(), distances.data());
+  /** First part: get the minimum    **/
+
+  cl::Kernel find_minimum(program, "min_distance", &err);
+  CheckCLError(err);
+
+  /** Second part: update neighbours **/
+
+  cl::Kernel update_neighbors(program, "dijkstra", &err);
+  CheckCLError(err);
+
+  // Set the find_minimum parameters
+
+  find_minimum.setArg(0, cl_visited);
+  find_minimum.setArg(1, cl_distances);
+  find_minimum.setArg(2, cl_minimums);
+  find_minimum.setArg(3, size);
+
+  update_neighbors.setArg(0, cl_visited);
+  update_neighbors.setArg(1, cl_adjacency);
+  update_neighbors.setArg(2, cl_distances);
+  update_neighbors.setArg(3, size);
+  update_neighbors.setArg(4, cl_minimums);
+
+  for (int i = 0; i < size - 1; i++) {
+
+    queue.enqueueNDRangeKernel(find_minimum, cl::NullRange, cl::NDRange(1, 1),
+                               cl::NullRange, NULL, &event);
+
+    event.wait();
+
+    queue.enqueueNDRangeKernel(update_neighbors, cl::NullRange,
+                               cl::NDRange(size, 1), cl::NullRange, NULL,
+                               &event);
+
+    event.wait();
+  }
+  queue.enqueueReadBuffer(cl_distances, true, 0, sizeof(int) * size,
+                          distances.data());
 
   return distances;
 }
@@ -123,4 +148,5 @@ int main(int argc, char **argv) {
 #else
   cout << distances << endl;
 #endif
+
 }
